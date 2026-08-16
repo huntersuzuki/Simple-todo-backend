@@ -6,9 +6,14 @@ on:
             - main
     workflow_dispatch:
 
+env:
+    APP_NAME: "Todo App"
+
 jobs:
     Learn:
         runs-on: ubuntu-latest
         steps:
-            - name: Hello World
-              run: echo "Hello World"
+            - name: step1
+              run: echo "Hello World from $APP_NAME"
+            - name: step2
+              run: echo "This is a simple workflow for $APP_NAME in $ENVIRONMENT"
