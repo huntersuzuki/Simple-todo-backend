@@ -1,0 +1,16 @@
+name: Simple Concept Workflow
+
+on:
+    push:
+        paths:
+            - "CI-CD/Todo-backend/todoapp"
+        branches:
+            - master
+    workflow_dispatch:
+
+jobs:
+    Learn:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Hello World
+              run: echo "Hello World"

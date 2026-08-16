@@ -1,0 +1,109 @@
+package com.pranay.todo.todoapp.service;
+
+import com.pranay.todo.todoapp.dto.CreateTodoRequest;
+import com.pranay.todo.todoapp.dto.UpdateTodoRequest;
+import com.pranay.todo.todoapp.exception.TodoNotFoundException;
+import com.pranay.todo.todoapp.model.Todo;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class TodoServiceTest {
+
+    private TodoService todoService;
+
+    @BeforeEach
+    void setUp() {
+        todoService = new TodoService();
+    }
+
+    @Test
+    void shouldInitDummyData() {
+        todoService.initDummyData();
+        List<Todo> todos = todoService.getAllTodos(null);
+        assertEquals(4, todos.size());
+    }
+
+    @Test
+    void shouldCreateAndGetTodo() {
+        CreateTodoRequest request = new CreateTodoRequest("Test Title", "Test Description", false);
+        Todo created = todoService.createTodo(request);
+
+        assertNotNull(created.getId());
+        assertEquals("Test Title", created.getTitle());
+        assertEquals("Test Description", created.getDescription());
+        assertFalse(created.isCompleted());
+        assertNotNull(created.getCreatedAt());
+        assertNotNull(created.getUpdatedAt());
+
+        Todo retrieved = todoService.getTodoById(created.getId());
+        assertEquals(created.getId(), retrieved.getId());
+    }
+
+    @Test
+    void shouldThrowExceptionWhenTitleIsEmptyOnCreate() {
+        CreateTodoRequest request = new CreateTodoRequest("   ", "Description", false);
+        assertThrows(IllegalArgumentException.class, () -> todoService.createTodo(request));
+    }
+
+    @Test
+    void shouldFilterTodosByCompletedStatus() {
+        todoService.createTodo(new CreateTodoRequest("Task 1", "Desc 1", false));
+        todoService.createTodo(new CreateTodoRequest("Task 2", "Desc 2", true));
+
+        List<Todo> all = todoService.getAllTodos(null);
+        assertEquals(2, all.size());
+
+        List<Todo> active = todoService.getAllTodos(false);
+        assertEquals(1, active.size());
+        assertEquals("Task 1", active.get(0).getTitle());
+
+        List<Todo> completed = todoService.getAllTodos(true);
+        assertEquals(1, completed.size());
+        assertEquals("Task 2", completed.get(0).getTitle());
+    }
+
+    @Test
+    void shouldUpdateTodo() {
+        Todo created = todoService.createTodo(new CreateTodoRequest("Old Title", "Old Desc", false));
+
+        UpdateTodoRequest updateRequest = new UpdateTodoRequest("New Title", "New Desc", true);
+        Todo updated = todoService.updateTodo(created.getId(), updateRequest);
+
+        assertEquals("New Title", updated.getTitle());
+        assertEquals("New Desc", updated.getDescription());
+        assertTrue(updated.isCompleted());
+    }
+
+    @Test
+    void shouldPatchTodo() {
+        Todo created = todoService.createTodo(new CreateTodoRequest("Original Title", "Original Desc", false));
+
+        UpdateTodoRequest patchRequest = new UpdateTodoRequest(null, null, true);
+        Todo patched = todoService.patchTodo(created.getId(), patchRequest);
+
+        assertEquals("Original Title", patched.getTitle());
+        assertEquals("Original Desc", patched.getDescription());
+        assertTrue(patched.isCompleted());
+    }
+
+    @Test
+    void shouldDeleteTodo() {
+        Todo created = todoService.createTodo(new CreateTodoRequest("Task", "Desc", false));
+        todoService.deleteTodo(created.getId());
+
+        assertThrows(TodoNotFoundException.class, () -> todoService.getTodoById(created.getId()));
+    }
+
+    @Test
+    void shouldDeleteAllTodos() {
+        todoService.createTodo(new CreateTodoRequest("Task 1", "Desc 1", false));
+        todoService.createTodo(new CreateTodoRequest("Task 2", "Desc 2", true));
+
+        todoService.deleteAllTodos();
+        assertTrue(todoService.getAllTodos(null).isEmpty());
+    }
+}
