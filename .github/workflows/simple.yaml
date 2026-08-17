@@ -23,3 +23,14 @@ jobs:
                   echo "Name of dockerhub username is ${{vars.DOCKER_USERNAME}}"
                   echo "Name of EC2 username is ${{vars.AWS_EC2_USER}}"
                   echo "Name of github repository is ${{github.repository}}"
+
+            - name: step4 checkout
+              uses: actions/checkout@v6
+            - name: step5 setup-java
+              uses: actions/setup-java@v5
+              with:
+                  java-version: 25
+                  distribution: temurin
+            - name: step6 run-java
+              run: |
+                  java -version
