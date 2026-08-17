@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow · Modern Todo Manager</title>
+    <meta name="description" content="A fast, beautiful, and intuitive task management application built with Spring Boot, Thymeleaf, and Tailwind CSS.">
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS v3 via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            200: '#c7d2fe',
+                            300: '#a5b4fc',
+                            400: '#818cf8',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        html {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            scroll-behavior: smooth;
+        }
+        
+        dialog::backdrop {
+            background-color: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            animation: fadeIn 0.2s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .task-card {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .task-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .toast-item {
+            animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body class="h-full bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased flex flex-col min-h-screen">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- Navigation Header -->
+    <header class="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-primary-500/20">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                        TaskFlow
+                        <span class="text-xs px-2 py-0.5 rounded-full font-medium bg-primary-100 text-primary-700 dark:bg-primary-950 dark:text-primary-300">Live SPA</span>
+                    </h1>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">Zero-refresh Spring Boot & Tailwind CSS</p>
+                </div>
+            </div>
+
+            <!-- Header Actions -->
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- API Status Badge -->
+                <a href="/api" target="_blank" title="View REST API Discovery" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>REST API</span>
+                </a>
+
+                <!-- Dark Mode Toggle Button -->
+                <button id="theme-toggle" type="button" aria-label="Toggle dark mode"
+                        class="p-2 rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        <!-- Hero & Overview Stats -->
+        <section class="grid grid-cols-1 sm:grid-cols-3 gap-4" aria-label="Todo Statistics">
+            <!-- Total Tasks Card -->
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Tasks</p>
+                    <p id="stat-total-count" class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1" th:text="${totalCount}">0</p>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Pending Tasks Card -->
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Pending</p>
+                    <p id="stat-pending-count" class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1" th:text="${pendingCount}">0</p>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Completed Tasks Card -->
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Completed</p>
+                    <p id="stat-completed-count" class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1" th:text="${completedCount}">0</p>
+                </div>
+                <div class="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+            </div>
+        </section>
+
+        <!-- Progress Tracker Bar -->
+        <div id="progress-container" class="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2"
+             th:classappend="${totalCount == 0 ? 'hidden' : ''}">
+            <div class="flex items-center justify-between text-xs font-medium text-slate-600 dark:text-slate-300">
+                <span class="flex items-center gap-1.5">
+                    <svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Completion Progress
+                </span>
+                <span id="stat-progress-text" class="font-bold text-primary-600 dark:text-primary-400" th:text="${progressPercent} + '%'">0%</span>
+            </div>
+            <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                <div id="stat-progress-bar" class="bg-gradient-to-r from-primary-500 to-emerald-500 h-2.5 rounded-full transition-all duration-500"
+                     th:style="'width: ' + ${progressPercent} + '%;'"></div>
+            </div>
+        </div>
+
+        <!-- Quick Add Task Card -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm" aria-label="Add new task">
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4 flex items-center gap-2">
+                <svg class="w-4 h-4 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Create New Task
+            </h2>
+
+            <form id="create-todo-form" class="space-y-4">
+                <div>
+                    <label for="todo-title-input" class="sr-only">Task Title</label>
+                    <input type="text" id="todo-title-input" name="title" required
+                           placeholder="What needs to be done? (e.g. Design search bar UI)"
+                           class="w-full px-4 py-3 text-base rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all">
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+                    <div class="flex-1">
+                        <label for="todo-desc-input" class="sr-only">Description</label>
+                        <input type="text" id="todo-desc-input" name="description"
+                               placeholder="Add extra details or notes (optional)"
+                               class="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all">
+                    </div>
+
+                    <button type="submit" id="add-task-submit-btn"
+                            class="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white font-medium text-sm shadow-md shadow-primary-500/20 transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>Add Task</span>
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Search & Filter Controls -->
+        <section class="space-y-4" aria-label="Task Filters and Search">
+            <div class="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+                
+                <!-- Filter Tabs -->
+                <div class="inline-flex p-1 bg-slate-200/70 dark:bg-slate-800/70 rounded-xl border border-slate-200 dark:border-slate-700/60" role="tablist">
+                    <button type="button" id="tab-all" onclick="setFilter('all')"
+                            class="filter-tab px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm">
+                        <span>All</span>
+                        <span id="tab-badge-all" class="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400" th:text="${totalCount}">0</span>
+                    </button>
+                    <button type="button" id="tab-pending" onclick="setFilter('pending')"
+                            class="filter-tab px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                        <span>Pending</span>
+                        <span id="tab-badge-pending" class="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300" th:text="${pendingCount}">0</span>
+                    </button>
+                    <button type="button" id="tab-completed" onclick="setFilter('completed')"
+                            class="filter-tab px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                        <span>Completed</span>
+                        <span id="tab-badge-completed" class="px-1.5 py-0.5 rounded-full text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300" th:text="${completedCount}">0</span>
+                    </button>
+                </div>
+
+                <!-- Live Search Form -->
+                <div class="flex items-center gap-2 flex-1 md:max-w-md">
+                    <div class="relative w-full">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <input type="search" id="search-input" th:value="${searchQuery}"
+                               placeholder="Search tasks by title or notes..."
+                               class="w-full pl-10 pr-10 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all">
+                        <button type="button" id="search-clear-btn" onclick="clearSearch()"
+                                title="Clear search"
+                                class="hidden absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+
+                    <!-- Clear All Action -->
+                    <button id="clear-all-btn" type="button" onclick="openClearAllModal()"
+                            title="Delete all tasks"
+                            class="px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-xl border border-rose-200 dark:border-rose-900/50 transition-colors whitespace-nowrap"
+                            th:classappend="${totalCount == 0 ? 'hidden' : ''}">
+                        Clear All
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Todo Items List -->
+        <section aria-label="Task List" class="space-y-3" id="todo-list-container">
+            
+            <!-- Dynamic Todo Cards Container -->
+            <div id="todo-cards-wrapper" class="space-y-3">
+                <article th:each="todo : ${todos}"
+                         th:id="'todo-item-' + ${todo.id}"
+                         th:data-id="${todo.id}"
+                         th:data-title="${todo.title}"
+                         th:data-description="${todo.description != null ? todo.description : ''}"
+                         th:data-completed="${todo.completed}"
+                         class="task-card bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-start gap-4 group"
+                         th:classappend="${todo.completed ? 'bg-slate-50/50 dark:bg-slate-900/40 opacity-75' : ''}">
+                    
+                    <!-- Toggle Button -->
+                    <button type="button"
+                            class="toggle-btn mt-0.5 shrink-0 w-6 h-6 rounded-lg border flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            th:data-id="${todo.id}"
+                            th:title="${todo.completed ? 'Mark as pending' : 'Mark as completed'}"
+                            th:classappend="${todo.completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 dark:border-slate-600 hover:border-primary-500 text-transparent hover:text-slate-300'}">
+                        <svg class="w-4 h-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </button>
+
+                    <!-- Task Body -->
+                    <div class="flex-1 min-w-0 space-y-1">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h3 class="task-title text-sm sm:text-base font-semibold transition-colors"
+                                th:classappend="${todo.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'}"
+                                th:text="${todo.title}">
+                                Task Title
+                            </h3>
+                            
+                            <span th:if="${todo.completed}" class="status-badge px-2 py-0.5 text-[10px] font-semibold rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                Completed
+                            </span>
+                            <span th:unless="${todo.completed}" class="status-badge px-2 py-0.5 text-[10px] font-semibold rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                                In Progress
+                            </span>
+                        </div>
+
+                        <p th:if="${todo.description != null and !todo.description.isEmpty()}"
+                           class="task-desc text-xs sm:text-sm text-slate-600 dark:text-slate-400 break-words"
+                           th:classappend="${todo.completed ? 'text-slate-400 dark:text-slate-500' : ''}"
+                           th:text="${todo.description}">
+                            Task Description
+                        </p>
+                        <p th:unless="${todo.description != null and !todo.description.isEmpty()}"
+                           class="task-desc text-xs sm:text-sm text-slate-600 dark:text-slate-400 break-words hidden">
+                        </p>
+
+                        <!-- Metadata -->
+                        <div class="flex items-center gap-3 pt-1 text-[11px] text-slate-400 dark:text-slate-500">
+                            <span class="flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span th:text="'ID: #' + ${todo.id}">#1</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex items-center gap-1 shrink-0 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                        <!-- Edit Button -->
+                        <button type="button"
+                                class="edit-btn p-2 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                th:data-id="${todo.id}"
+                                th:data-title="${todo.title}"
+                                th:data-description="${todo.description != null ? todo.description : ''}"
+                                th:data-completed="${todo.completed}"
+                                title="Edit task">
+                            <svg class="w-4 h-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </button>
+
+                        <!-- Delete Button -->
+                        <button type="button"
+                                class="delete-btn p-2 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                th:data-id="${todo.id}"
+                                th:data-title="${todo.title}"
+                                title="Delete task">
+                            <svg class="w-4 h-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                </article>
+            </div>
+
+            <!-- Empty State Container -->
+            <div id="empty-state" class="bg-white dark:bg-slate-900 rounded-2xl p-12 text-center border border-dashed border-slate-300 dark:border-slate-800 space-y-4"
+                 th:classappend="${not #lists.isEmpty(todos) ? 'hidden' : ''}">
+                <div class="w-16 h-16 rounded-2xl bg-primary-50 dark:bg-primary-950/60 text-primary-600 dark:text-primary-400 flex items-center justify-center mx-auto">
+                    <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 id="empty-state-title" class="text-base font-semibold text-slate-900 dark:text-white">No tasks found</h3>
+                    <p id="empty-state-desc" class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
+                        You don't have any tasks in this view yet. Create one above to get organized!
+                    </p>
+                </div>
+                <button type="button" onclick="document.getElementById('todo-title-input').focus()"
+                        class="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Create a task
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-auto border-t border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 py-6 text-center text-xs text-slate-500 dark:text-slate-400">
+        <p>Built with Spring Boot 4, Thymeleaf & Tailwind CSS · Real-Time SPA Experience</p>
+    </footer>
+
+    <!-- Native <dialog> Modal: Edit Task -->
+    <dialog id="edit-dialog" class="rounded-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-6 shadow-2xl border border-slate-200 dark:border-slate-800 max-w-lg w-full mx-auto">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+            <h3 class="text-base font-bold flex items-center gap-2">
+                <svg class="w-5 h-5 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit Task
+            </h3>
+            <button type="button" onclick="closeEditModal()" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <form id="edit-todo-form" class="space-y-4 mt-4">
+            <input type="hidden" id="edit-id" name="id">
+            <div>
+                <label for="edit-title" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Task Title</label>
+                <input type="text" id="edit-title" name="title" required
+                       class="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all">
+            </div>
+
+            <div>
+                <label for="edit-description" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Description</label>
+                <textarea id="edit-description" name="description" rows="3"
+                          class="w-full px-4 py-2.5 text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"></textarea>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="edit-completed" name="completed"
+                       class="w-4 h-4 rounded text-primary-600 focus:ring-primary-500 border-slate-300 dark:border-slate-600 dark:bg-slate-800">
+                <label for="edit-completed" class="text-sm font-medium text-slate-700 dark:text-slate-300">Mark as completed</label>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-4 border-t border-slate-200 dark:border-slate-800">
+                <button type="button" onclick="closeEditModal()" class="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                    Cancel
+                </button>
+                <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-primary-600 hover:bg-primary-700 text-white shadow-md shadow-primary-500/20 transition-colors">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- Native <dialog> Modal: Delete Confirmation -->
+    <dialog id="delete-dialog" class="rounded-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-6 shadow-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full mx-auto">
+        <div class="space-y-4 text-center">
+            <div class="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </div>
+
+            <div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white">Delete Task</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Are you sure you want to delete <strong id="delete-todo-title" class="text-slate-900 dark:text-white"></strong>? This action cannot be undone.</p>
+            </div>
+
+            <form id="delete-todo-form" class="flex items-center justify-center gap-3 pt-2">
+                <input type="hidden" id="delete-id" name="id">
+                <button type="button" onclick="closeDeleteModal()" class="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                    Cancel
+                </button>
+                <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-500/20 transition-colors">
+                    Delete
+                </button>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- Native <dialog> Modal: Clear All Confirmation -->
+    <dialog id="clear-all-dialog" class="rounded-2xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white p-6 shadow-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full mx-auto">
+        <div class="space-y-4 text-center">
+            <div class="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+
+            <div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white">Clear All Tasks</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Are you sure you want to remove all tasks? This will delete everything in your list.</p>
+            </div>
+
+            <form id="clear-all-todo-form" class="flex items-center justify-center gap-3 pt-2">
+                <button type="button" onclick="closeClearAllModal()" class="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                    Cancel
+                </button>
+                <button type="submit" class="px-5 py-2 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-500/20 transition-colors">
+                    Yes, Clear All
+                </button>
+            </form>
+        </div>
+    </dialog>
+
+    <!-- Client-side SPA Scripts -->
+    <script>
+        // --- State Management ---
+        let currentFilter = 'all';
+        let currentSearchQuery = '';
+
+        // --- Dark Mode Handler ---
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
+        const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
+
+        const isDarkMode = () => localStorage.getItem('color-theme') === 'dark' ||
+            (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+        function applyTheme(dark) {
+            if (dark) {
+                document.documentElement.classList.add('dark');
+                themeToggleLightIcon.classList.remove('hidden');
+                themeToggleDarkIcon.classList.add('hidden');
+            } else {
+                document.documentElement.classList.remove('dark');
+                themeToggleDarkIcon.classList.remove('hidden');
+                themeToggleLightIcon.classList.add('hidden');
+            }
+        }
+
+        applyTheme(isDarkMode());
+
+        themeToggleBtn.addEventListener('click', () => {
+            const currentlyDark = document.documentElement.classList.contains('dark');
+            const newTheme = !currentlyDark;
+            localStorage.setItem('color-theme', newTheme ? 'dark' : 'light');
+            applyTheme(newTheme);
+        });
+
+        // --- Toast Notification Helper ---
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast-item flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl border text-sm font-medium transition-all duration-300 pointer-events-auto ${
+                type === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/90 dark:text-emerald-300 dark:border-emerald-800'
+                    : 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/90 dark:text-rose-300 dark:border-rose-800'
+            }`;
+
+            const iconSvg = type === 'success'
+                ? '<svg class="w-5 h-5 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>'
+                : '<svg class="w-5 h-5 text-rose-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
+
+            toast.innerHTML = `
+                ${iconSvg}
+                <span class="flex-1">${escapeHtml(message)}</span>
+                <button type="button" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1" onclick="this.parentElement.remove()">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // --- Recalculate and Update Statistics ---
+        function recalculateStats() {
+            const allCards = Array.from(document.querySelectorAll('#todo-cards-wrapper > article'));
+            const total = allCards.length;
+            const completed = allCards.filter(card => card.dataset.completed === 'true').length;
+            const pending = total - completed;
+
+            document.getElementById('stat-total-count').textContent = total;
+            document.getElementById('stat-completed-count').textContent = completed;
+            document.getElementById('stat-pending-count').textContent = pending;
+
+            document.getElementById('tab-badge-all').textContent = total;
+            document.getElementById('tab-badge-completed').textContent = completed;
+            document.getElementById('tab-badge-pending').textContent = pending;
+
+            const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+            document.getElementById('stat-progress-text').textContent = percent + '%';
+            document.getElementById('stat-progress-bar').style.width = percent + '%';
+
+            const progressContainer = document.getElementById('progress-container');
+            const clearAllBtn = document.getElementById('clear-all-btn');
+
+            if (total === 0) {
+                progressContainer.classList.add('hidden');
+                if (clearAllBtn) clearAllBtn.classList.add('hidden');
+            } else {
+                progressContainer.classList.remove('hidden');
+                if (clearAllBtn) clearAllBtn.classList.remove('hidden');
+            }
+
+            filterDOMCards();
+        }
+
+        // --- DOM Card Builder ---
+        function buildCardElement(todo) {
+            const article = document.createElement('article');
+            article.id = 'todo-item-' + todo.id;
+            article.dataset.id = todo.id;
+            article.dataset.title = todo.title;
+            article.dataset.description = todo.description || '';
+            article.dataset.completed = String(todo.completed);
+            article.className = `task-card bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-start gap-4 group ${
+                todo.completed ? 'bg-slate-50/50 dark:bg-slate-900/40 opacity-75' : ''
+            }`;
+
+            article.innerHTML = `
+                <!-- Toggle Button -->
+                <button type="button"
+                        class="toggle-btn mt-0.5 shrink-0 w-6 h-6 rounded-lg border flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                            todo.completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 dark:border-slate-600 hover:border-primary-500 text-transparent hover:text-slate-300'
+                        }"
+                        data-id="${todo.id}"
+                        title="${todo.completed ? 'Mark as pending' : 'Mark as completed'}">
+                    <svg class="w-4 h-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                    </svg>
+                </button>
+
+                <!-- Task Body -->
+                <div class="flex-1 min-w-0 space-y-1">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h3 class="task-title text-sm sm:text-base font-semibold transition-colors ${
+                            todo.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'
+                        }">
+                            ${escapeHtml(todo.title)}
+                        </h3>
+                        
+                        <span class="status-badge px-2 py-0.5 text-[10px] font-semibold rounded-md ${
+                            todo.completed ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                        }">
+                            ${todo.completed ? 'Completed' : 'In Progress'}
+                        </span>
+                    </div>
+
+                    <p class="task-desc text-xs sm:text-sm text-slate-600 dark:text-slate-400 break-words ${todo.completed ? 'text-slate-400 dark:text-slate-500' : ''} ${!todo.description ? 'hidden' : ''}">
+                        ${escapeHtml(todo.description || '')}
+                    </p>
+
+                    <!-- Metadata -->
+                    <div class="flex items-center gap-3 pt-1 text-[11px] text-slate-400 dark:text-slate-500">
+                        <span class="flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span>ID: #${todo.id}</span>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-1 shrink-0 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button type="button"
+                            class="edit-btn p-2 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            data-id="${todo.id}"
+                            data-title="${escapeHtml(todo.title)}"
+                            data-description="${escapeHtml(todo.description || '')}"
+                            data-completed="${todo.completed}"
+                            title="Edit task">
+                        <svg class="w-4 h-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                    </button>
+
+                    <button type="button"
+                            class="delete-btn p-2 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500"
+                            data-id="${todo.id}"
+                            data-title="${escapeHtml(todo.title)}"
+                            title="Delete task">
+                        <svg class="w-4 h-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                </div>
+            `;
+            return article;
+        }
+
+        // --- Filter & Search in DOM ---
+        function filterDOMCards() {
+            const allCards = Array.from(document.querySelectorAll('#todo-cards-wrapper > article'));
+            const emptyState = document.getElementById('empty-state');
+            const emptyTitle = document.getElementById('empty-state-title');
+            const emptyDesc = document.getElementById('empty-state-desc');
+
+            const query = currentSearchQuery.trim().toLowerCase();
+            let visibleCount = 0;
+
+            allCards.forEach(card => {
+                const isCompleted = card.dataset.completed === 'true';
+                const title = (card.dataset.title || '').toLowerCase();
+                const desc = (card.dataset.description || '').toLowerCase();
+
+                // Status filter
+                let matchesStatus = true;
+                if (currentFilter === 'pending' && isCompleted) matchesStatus = false;
+                if (currentFilter === 'completed' && !isCompleted) matchesStatus = false;
+
+                // Search query match
+                let matchesSearch = true;
+                if (query) {
+                    matchesSearch = title.includes(query) || desc.includes(query);
+                }
+
+                if (matchesStatus && matchesSearch) {
+                    card.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    card.classList.add('hidden');
+                }
+            });
+
+            if (visibleCount === 0) {
+                emptyState.classList.remove('hidden');
+                if (query) {
+                    emptyTitle.textContent = 'No matching tasks';
+                    emptyDesc.textContent = `No tasks found matching "${currentSearchQuery}". Try a different keyword.`;
+                } else if (currentFilter === 'pending') {
+                    emptyTitle.textContent = 'All caught up!';
+                    emptyDesc.textContent = 'You have no pending tasks. Great job!';
+                } else if (currentFilter === 'completed') {
+                    emptyTitle.textContent = 'No completed tasks yet';
+                    emptyDesc.textContent = 'Complete tasks to see them archived here.';
+                } else {
+                    emptyTitle.textContent = 'No tasks found';
+                    emptyDesc.textContent = "You don't have any tasks yet. Create one above to get organized!";
+                }
+            } else {
+                emptyState.classList.add('hidden');
+            }
+        }
+
+        function setFilter(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.className = 'filter-tab px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+            });
+
+            const activeTab = document.getElementById('tab-' + filter);
+            if (activeTab) {
+                activeTab.className = 'filter-tab px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm';
+            }
+
+            filterDOMCards();
+        }
+
+        // --- Live Search Handler ---
+        const searchInput = document.getElementById('search-input');
+        const searchClearBtn = document.getElementById('search-clear-btn');
+
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                currentSearchQuery = e.target.value;
+                if (currentSearchQuery.length > 0) {
+                    searchClearBtn.classList.remove('hidden');
+                } else {
+                    searchClearBtn.classList.add('hidden');
+                }
+                filterDOMCards();
+            });
+        }
+
+        function clearSearch() {
+            if (searchInput) {
+                searchInput.value = '';
+                currentSearchQuery = '';
+                searchClearBtn.classList.add('hidden');
+                filterDOMCards();
+                searchInput.focus();
+            }
+        }
+
+        // --- Quick Add Task (POST /api/todos) ---
+        const createForm = document.getElementById('create-todo-form');
+        const titleInput = document.getElementById('todo-title-input');
+        const descInput = document.getElementById('todo-desc-input');
+
+        createForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = titleInput.value.trim();
+            const description = descInput.value.trim();
+
+            if (!title) return;
+
+            try {
+                const res = await fetch('/api/todos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, description, completed: false })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.message || 'Failed to create task');
+                }
+
+                const created = await res.json();
+                const card = buildCardElement(created);
+                const wrapper = document.getElementById('todo-cards-wrapper');
+                wrapper.prepend(card);
+
+                titleInput.value = '';
+                descInput.value = '';
+                titleInput.focus();
+
+                recalculateStats();
+                showToast('Task added successfully!');
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        });
+
+        // --- Toggle Complete (PATCH /api/todos/{id}) ---
+        async function toggleTodo(id) {
+            const card = document.getElementById('todo-item-' + id);
+            if (!card) return;
+
+            const isCompleted = card.dataset.completed === 'true';
+            const nextCompleted = !isCompleted;
+
+            try {
+                const res = await fetch('/api/todos/' + id, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ completed: nextCompleted })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.message || 'Failed to toggle task');
+                }
+
+                const updated = await res.json();
+                card.dataset.completed = String(updated.completed);
+
+                // Update Toggle Button
+                const toggleBtn = card.querySelector('.toggle-btn');
+                if (updated.completed) {
+                    toggleBtn.className = 'toggle-btn mt-0.5 shrink-0 w-6 h-6 rounded-lg border flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 bg-emerald-500 border-emerald-500 text-white';
+                    toggleBtn.title = 'Mark as pending';
+                } else {
+                    toggleBtn.className = 'toggle-btn mt-0.5 shrink-0 w-6 h-6 rounded-lg border flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 border-slate-300 dark:border-slate-600 hover:border-primary-500 text-transparent hover:text-slate-300';
+                    toggleBtn.title = 'Mark as completed';
+                }
+
+                // Update Title & Badge
+                const titleEl = card.querySelector('.task-title');
+                const badgeEl = card.querySelector('.status-badge');
+
+                if (updated.completed) {
+                    titleEl.className = 'task-title text-sm sm:text-base font-semibold transition-colors line-through text-slate-400 dark:text-slate-500';
+                    badgeEl.className = 'status-badge px-2 py-0.5 text-[10px] font-semibold rounded-md bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300';
+                    badgeEl.textContent = 'Completed';
+                    card.classList.add('bg-slate-50/50', 'dark:bg-slate-900/40', 'opacity-75');
+                } else {
+                    titleEl.className = 'task-title text-sm sm:text-base font-semibold transition-colors text-slate-900 dark:text-white';
+                    badgeEl.className = 'status-badge px-2 py-0.5 text-[10px] font-semibold rounded-md bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300';
+                    badgeEl.textContent = 'In Progress';
+                    card.classList.remove('bg-slate-50/50', 'dark:bg-slate-900/40', 'opacity-75');
+                }
+
+                // Update edit button dataset
+                const editBtn = card.querySelector('.edit-btn');
+                if (editBtn) editBtn.dataset.completed = String(updated.completed);
+
+                recalculateStats();
+                showToast(updated.completed ? 'Task marked as completed!' : 'Task marked as pending!');
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        }
+
+        // --- Modals Control ---
+        const editDialog = document.getElementById('edit-dialog');
+        const deleteDialog = document.getElementById('delete-dialog');
+        const clearAllDialog = document.getElementById('clear-all-dialog');
+
+        function openEditModal(id, title, description, completed) {
+            document.getElementById('edit-id').value = id;
+            document.getElementById('edit-title').value = title;
+            document.getElementById('edit-description').value = description || '';
+            document.getElementById('edit-completed').checked = completed;
+            editDialog.showModal();
+        }
+
+        function closeEditModal() {
+            editDialog.close();
+        }
+
+        function openDeleteModal(id, title) {
+            document.getElementById('delete-id').value = id;
+            document.getElementById('delete-todo-title').textContent = '"' + title + '"';
+            deleteDialog.showModal();
+        }
+
+        function closeDeleteModal() {
+            deleteDialog.close();
+        }
+
+        function openClearAllModal() {
+            clearAllDialog.showModal();
+        }
+
+        function closeClearAllModal() {
+            clearAllDialog.close();
+        }
+
+        // --- Edit Form Submit (PUT /api/todos/{id}) ---
+        const editForm = document.getElementById('edit-todo-form');
+        editForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('edit-id').value;
+            const title = document.getElementById('edit-title').value.trim();
+            const description = document.getElementById('edit-description').value.trim();
+            const completed = document.getElementById('edit-completed').checked;
+
+            try {
+                const res = await fetch('/api/todos/' + id, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, description, completed })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.message || 'Failed to update task');
+                }
+
+                const updated = await res.json();
+                const card = document.getElementById('todo-item-' + id);
+                if (card) {
+                    const newCard = buildCardElement(updated);
+                    card.replaceWith(newCard);
+                }
+
+                closeEditModal();
+                recalculateStats();
+                showToast('Task updated successfully!');
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        });
+
+        // --- Delete Form Submit (DELETE /api/todos/{id}) ---
+        const deleteForm = document.getElementById('delete-todo-form');
+        deleteForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('delete-id').value;
+
+            try {
+                const res = await fetch('/api/todos/' + id, { method: 'DELETE' });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.message || 'Failed to delete task');
+                }
+
+                const card = document.getElementById('todo-item-' + id);
+                if (card) {
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateY(10px)';
+                    setTimeout(() => {
+                        card.remove();
+                        recalculateStats();
+                    }, 200);
+                }
+
+                closeDeleteModal();
+                showToast('Task deleted successfully!');
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        });
+
+        // --- Clear All Form Submit (DELETE /api/todos) ---
+        const clearAllForm = document.getElementById('clear-all-todo-form');
+        clearAllForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            try {
+                const res = await fetch('/api/todos', { method: 'DELETE' });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.message || 'Failed to clear tasks');
+                }
+
+                const wrapper = document.getElementById('todo-cards-wrapper');
+                wrapper.innerHTML = '';
+
+                closeClearAllModal();
+                recalculateStats();
+                showToast('All tasks cleared!');
+            } catch (err) {
+                showToast(err.message, 'error');
+            }
+        });
+
+        // --- Delegated click listener for dynamic cards ---
+        document.addEventListener('click', (e) => {
+            const toggleBtn = e.target.closest('.toggle-btn');
+            if (toggleBtn) {
+                const id = toggleBtn.dataset.id;
+                toggleTodo(id);
+                return;
+            }
+
+            const editBtn = e.target.closest('.edit-btn');
+            if (editBtn) {
+                const { id, title, description, completed } = editBtn.dataset;
+                openEditModal(id, title, description, completed === 'true');
+                return;
+            }
+
+            const deleteBtn = e.target.closest('.delete-btn');
+            if (deleteBtn) {
+                const { id, title } = deleteBtn.dataset;
+                openDeleteModal(id, title);
+                return;
+            }
+        });
+
+        // Close modals when clicking backdrop
+        [editDialog, deleteDialog, clearAllDialog].forEach(dialog => {
+            dialog.addEventListener('click', (e) => {
+                const rect = dialog.getBoundingClientRect();
+                const isInDialog = (rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
+                                    rect.left <= e.clientX && e.clientX <= rect.left + rect.width);
+                if (!isInDialog) {
+                    dialog.close();
+                }
+            });
+        });
+
+        // --- Keyboard shortcuts ---
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                if (searchInput) searchInput.focus();
+            }
+        });
+
+        // Initial stats check on page load
+        recalculateStats();
+    </script>
+</body>
+</html>

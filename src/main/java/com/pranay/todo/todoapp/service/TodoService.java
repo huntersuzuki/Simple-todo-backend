@@ -140,4 +140,24 @@ public class TodoService {
     public void deleteAllTodos() {
         todoStore.clear();
     }
+
+    public Todo toggleTodoCompletion(Long id) {
+        Todo existingTodo = getTodoById(id);
+        existingTodo.setCompleted(!existingTodo.isCompleted());
+        existingTodo.setUpdatedAt(LocalDateTime.now());
+        todoStore.put(id, existingTodo);
+        return existingTodo;
+    }
+
+    public long getTotalCount() {
+        return todoStore.size();
+    }
+
+    public long getCompletedCount() {
+        return todoStore.values().stream().filter(Todo::isCompleted).count();
+    }
+
+    public long getPendingCount() {
+        return todoStore.values().stream().filter(t -> !t.isCompleted()).count();
+    }
 }

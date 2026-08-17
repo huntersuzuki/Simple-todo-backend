@@ -20,7 +20,7 @@ class WelcomeControllerTest {
 
     @Test
     void shouldReturnWelcomeMessage() throws Exception {
-        mockMvc.perform(get("/"))
+        mockMvc.perform(get("/api"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message", containsString("Welcome to the Todo API!")))
                 .andExpect(jsonPath("$.status", is("UP")))
