@@ -25,6 +25,7 @@ class WelcomeControllerTest {
                 .andExpect(jsonPath("$.message", containsString("Welcome to the Todo API!")))
                 .andExpect(jsonPath("$.status", is("UP")))
                 .andExpect(jsonPath("$.version", is("1.0.0")))
-                .andExpect(jsonPath("$.endpoints.getAllTodos", is("GET /api/todos")));
+                .andExpect(jsonPath("$.endpoints.getAllTodos", is("GET /api/todos")))
+                .andExpect(jsonPath("$.endpoints.searchTodos", is("GET /api/todos/search?query={query}&completed={completed}")));
     }
 }

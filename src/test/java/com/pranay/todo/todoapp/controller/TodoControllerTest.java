@@ -142,4 +142,46 @@ class TodoControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
     }
+
+    @Test
+    void shouldSearchTodosByQueryParam() throws Exception {
+        todoService.createTodo(new CreateTodoRequest("Buy almond milk", "From grocery store", false));
+        todoService.createTodo(new CreateTodoRequest("Learn Java", "Practice Spring Boot", true));
+
+        mockMvc.perform(get("/api/todos/search?query=milk"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].title", is("Buy almond milk")));
+    }
+
+    @Test
+    void shouldSearchTodosByQParam() throws Exception {
+        todoService.createTodo(new CreateTodoRequest("Buy almond milk", "From grocery store", false));
+        todoService.createTodo(new CreateTodoRequest("Learn Java", "Practice Spring Boot", true));
+
+        mockMvc.perform(get("/api/todos/search?q=Practice"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].title", is("Learn Java")));
+    }
+
+    @Test
+    void shouldSearchTodosWithCompletedFilter() throws Exception {
+        todoService.createTodo(new CreateTodoRequest("Learn Spring Core", "Basics", false));
+        todoService.createTodo(new CreateTodoRequest("Learn Spring Security", "Advanced", true));
+
+        mockMvc.perform(get("/api/todos/search?query=Spring&completed=true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].title", is("Learn Spring Security")));
+    }
+
+    @Test
+    void shouldSearchTodosReturningEmptyWhenNoMatches() throws Exception {
+        todoService.createTodo(new CreateTodoRequest("Task 1", "Desc 1", false));
+
+        mockMvc.perform(get("/api/todos/search?query=NonExistentTask"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
+    }
 }

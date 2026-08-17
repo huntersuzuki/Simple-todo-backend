@@ -38,6 +38,25 @@ public class TodoService {
                 .collect(Collectors.toList());
     }
 
+    public List<Todo> searchTodos(String query, Boolean completed) {
+        String trimmedQuery = (query != null) ? query.trim().toLowerCase() : "";
+
+        return todoStore.values().stream()
+                .filter(todo -> {
+                    if (completed != null && todo.isCompleted() != completed) {
+                        return false;
+                    }
+                    if (trimmedQuery.isEmpty()) {
+                        return true;
+                    }
+                    boolean matchTitle = todo.getTitle() != null && todo.getTitle().toLowerCase().contains(trimmedQuery);
+                    boolean matchDescription = todo.getDescription() != null && todo.getDescription().toLowerCase().contains(trimmedQuery);
+                    return matchTitle || matchDescription;
+                })
+                .sorted(Comparator.comparing(Todo::getId))
+                .collect(Collectors.toList());
+    }
+
     public Todo getTodoById(Long id) {
         Todo todo = todoStore.get(id);
         if (todo == null) {

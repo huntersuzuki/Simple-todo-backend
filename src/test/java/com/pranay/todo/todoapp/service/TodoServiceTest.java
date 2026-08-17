@@ -106,4 +106,72 @@ class TodoServiceTest {
         todoService.deleteAllTodos();
         assertTrue(todoService.getAllTodos(null).isEmpty());
     }
+
+    @Test
+    void shouldSearchTodosByTitle() {
+        todoService.createTodo(new CreateTodoRequest("Buy groceries", "Milk, Eggs, Bread", false));
+        todoService.createTodo(new CreateTodoRequest("Learn Spring", "Spring Boot basics", true));
+        todoService.createTodo(new CreateTodoRequest("Read a book", "Sci-Fi novel", false));
+
+        List<Todo> results = todoService.searchTodos("spring", null);
+        assertEquals(1, results.size());
+        assertEquals("Learn Spring", results.get(0).getTitle());
+    }
+
+    @Test
+    void shouldSearchTodosByDescription() {
+        todoService.createTodo(new CreateTodoRequest("Shopping", "Buy groceries and Milk", false));
+        todoService.createTodo(new CreateTodoRequest("Study", "Learn Spring Boot", true));
+
+        List<Todo> results = todoService.searchTodos("groceries", null);
+        assertEquals(1, results.size());
+        assertEquals("Shopping", results.get(0).getTitle());
+    }
+
+    @Test
+    void shouldSearchTodosWithCompletedFilter() {
+        todoService.createTodo(new CreateTodoRequest("Task A", "Learn Java", false));
+        todoService.createTodo(new CreateTodoRequest("Task B", "Learn Java advanced", true));
+
+        List<Todo> completedJava = todoService.searchTodos("Java", true);
+        assertEquals(1, completedJava.size());
+        assertEquals("Task B", completedJava.get(0).getTitle());
+
+        List<Todo> activeJava = todoService.searchTodos("Java", false);
+        assertEquals(1, activeJava.size());
+        assertEquals("Task A", activeJava.get(0).getTitle());
+    }
+
+    @Test
+    void shouldReturnAllWhenSearchQueryIsNullOrBlank() {
+        todoService.createTodo(new CreateTodoRequest("Task 1", "Desc 1", false));
+        todoService.createTodo(new CreateTodoRequest("Task 2", "Desc 2", true));
+
+        List<Todo> nullQueryResults = todoService.searchTodos(null, null);
+        assertEquals(2, nullQueryResults.size());
+
+        List<Todo> blankQueryResults = todoService.searchTodos("   ", null);
+        assertEquals(2, blankQueryResults.size());
+
+        List<Todo> blankQueryWithCompletedFilter = todoService.searchTodos(" ", true);
+        assertEquals(1, blankQueryWithCompletedFilter.size());
+        assertEquals("Task 2", blankQueryWithCompletedFilter.get(0).getTitle());
+    }
+
+    @Test
+    void shouldReturnEmptyListWhenNoMatchesFound() {
+        todoService.createTodo(new CreateTodoRequest("Task 1", "Desc 1", false));
+
+        List<Todo> results = todoService.searchTodos("NonexistentQuery", null);
+        assertTrue(results.isEmpty());
+    }
+
+    @Test
+    void shouldHandleNullDescriptionDuringSearch() {
+        todoService.createTodo(new CreateTodoRequest("Fix bug", null, false));
+
+        List<Todo> results = todoService.searchTodos("bug", null);
+        assertEquals(1, results.size());
+        assertEquals("Fix bug", results.get(0).getTitle());
+    }
 }

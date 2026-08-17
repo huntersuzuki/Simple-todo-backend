@@ -23,6 +23,7 @@ public class WelcomeController {
         endpoints.put("getAllTodos", "GET /api/todos");
         endpoints.put("getCompletedTodos", "GET /api/todos?completed=true");
         endpoints.put("getPendingTodos", "GET /api/todos?completed=false");
+        endpoints.put("searchTodos", "GET /api/todos/search?query={query}&completed={completed}");
         endpoints.put("getTodoById", "GET /api/todos/{id}");
         endpoints.put("createTodo", "POST /api/todos");
         endpoints.put("updateTodo", "PUT /api/todos/{id}");

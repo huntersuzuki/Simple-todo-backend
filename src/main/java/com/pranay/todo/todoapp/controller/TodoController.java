@@ -27,6 +27,16 @@ public class TodoController {
         return ResponseEntity.ok(todos);
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<List<Todo>> searchTodos(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Boolean completed) {
+        String searchTerm = query != null ? query : q;
+        List<Todo> todos = todoService.searchTodos(searchTerm, completed);
+        return ResponseEntity.ok(todos);
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Todo> getTodoById(@PathVariable Long id) {
         Todo todo = todoService.getTodoById(id);
