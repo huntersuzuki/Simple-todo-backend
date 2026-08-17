@@ -9,6 +9,7 @@ on:
 env:
     APP_NAME: "todo-backend"
     ENVIRONMENT: "Production"
+    CONTAINER_NAME: "todo-backend-container"
 
 jobs:
     build:
@@ -45,3 +46,20 @@ jobs:
               run: |
                   docker push ${{vars.DOCKER_USERNAME}}/${{env.APP_NAME}}:latest
                   echo "Docker image pushed to DockerHub: ${{vars.DOCKER_USERNAME}}/${{env.APP_NAME}}:latest"
+
+            - name: Deploy to EC2
+              uses: appleboy/ssh-action@v1.2.2
+              with:
+                  host: ${{vars.AWS_EC2_HOST}}
+                  username: ${{vars.AWS_EC2_USER}}
+                  key: ${{secrets.AWS_EC2_PASSWORD}}
+                  script: |
+                      docker pull ${{vars.DOCKER_USERNAME}}/${{env.APP_NAME}}:latest
+                      docker stop ${{env.CONTAINER_NAME}} || true
+                      docker rm ${{env.CONTAINER_NAME}} || true
+                      docker run -d \
+                       --name ${{env.CONTAINER_NAME}} \
+                        -p 8080:8080  \
+                        ${{vars.DOCKER_USERNAME}}/${{env.APP_NAME}}:latest
+                      docker image prune -f
+                      echo "Deployment completed on EC2: ${{vars.AWS_EC2_HOST}}"
