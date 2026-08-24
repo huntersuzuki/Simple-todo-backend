@@ -9,10 +9,12 @@ pipeline {
 
     stages {
         stage('Checkout') {
-            checkout scm
+            steps {
+                checkout scm
 
-            echo 'Checkout successful'
-            echo 'Testing from GitHub...'
+                echo 'Checkout successful'
+                echo 'Testing from GitHub...'
+            }
         }
 
         stage('Test') {
